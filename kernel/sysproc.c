@@ -7,6 +7,8 @@
 #include "spinlock.h"
 #include "proc.h"
 
+#include "sysinfo.h"
+
 uint64
 sys_exit(void)
 {
@@ -106,5 +108,26 @@ sys_trace(void)
   int mask; 
   argint(0,&mask);  // get the mask argment
   p->trace_mask = mask;   // save the trace mask
+  return 0;
+}
+
+uint64
+sys_sysinfo(void)
+{
+  uint64 info;  // user pointer to struct sysinfo
+  struct sysinfo si;
+  struct proc *p = myproc();
+
+  uint64 num_proc();
+  uint64 free_bytes();
+
+  si.freemem = free_bytes();
+  si.nproc = num_proc();
+
+  argaddr(0,&info); // get user's pointer to struct sysinfo
+
+  if(copyout(p->pagetable,info,(char *)&si,sizeof(si)) < 0)
+    return -1;
+
   return 0;
 }

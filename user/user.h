@@ -25,6 +25,8 @@ int sleep(int);
 int uptime(void);
 // added system call
 int trace(int mask);
+struct sysinfo; // declare this struct first
+int sysinfo(struct sysinfo *);
 
 // ulib.c
 int stat(const char*, struct stat*);

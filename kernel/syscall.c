@@ -106,6 +106,7 @@ extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
 // added system call
 extern uint64 sys_trace(void);
+extern uint64 sys_sysinfo(void);
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -131,11 +132,12 @@ static uint64 (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 // added syscall
 [SYS_trace]   sys_trace,
+[SYS_sysinfo] sys_sysinfo,
 };
 
 static char *syscalls_names[] = {
   "none","fork","exit","wait","pipe","read","kill","exec","fstat","chdir","dup","getpid","sbrk",
-  "sleep","uptime","open","write","mknod","unlink","link","mkdir","close","trace"
+  "sleep","uptime","open","write","mknod","unlink","link","mkdir","close","trace","sysinfo"
 };
 
 void

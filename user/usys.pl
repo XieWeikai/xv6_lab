@@ -39,3 +39,4 @@ entry("uptime");
 
 #added system call
 entry("trace");
+entry("sysinfo")
