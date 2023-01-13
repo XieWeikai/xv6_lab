@@ -158,6 +158,7 @@ void            uartputc_sync(int);
 int             uartgetc(void);
 
 // vm.c
+void            vmprint(pagetable_t pt); // this function is a task of page table lab
 void            kvminit(void);
 void            kvminithart(void);
 uint64          kvmpa(uint64);

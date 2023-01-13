@@ -16,6 +16,38 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 extern char trampoline[]; // trampoline.S
 
 /*
+* a helper function to print page table recursively
+* level is the level of pagetable
+* 0 is the highest level
+* 2 is the lowest level
+*/
+static void print_pte(pagetable_t pt,int level){
+  if(level > 2)
+    return;
+  pte_t *pte = (pte_t *)pt;
+  while(pte - (pte_t *)pt < 512){ // 512 pte in a page
+    if(*pte & PTE_V){ // available entry
+      for(int i = 0;i < level;i ++)
+        printf(".. ");  // indent
+
+      printf("..%d: pte %p pa %p\n",pte - (pte_t*)pt,*pte,PTE2PA(*pte));
+      
+      print_pte((pagetable_t)PTE2PA(*pte),level + 1);
+    }
+    pte ++; // next pte
+  }
+}
+
+/*
+* print the content of a pagetable
+* this is a task for pagetable lab
+*/
+void vmprint(pagetable_t pt){
+  printf("page table %p\n",pt);
+  print_pte(pt,0);
+}
+
+/*
  * create a direct-map page table for the kernel.
  */
 void
