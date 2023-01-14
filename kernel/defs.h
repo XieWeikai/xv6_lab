@@ -180,6 +180,9 @@ int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 
+void map_helper(pagetable_t pt, uint64 va, uint64 pa, uint64 sz, int perm);
+pagetable_t make_kernel_ptbl();
+
 // plic.c
 void            plicinit(void);
 void            plicinithart(void);

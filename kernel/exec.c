@@ -65,7 +65,7 @@ exec(char *path, char **argv)
   uint64 oldsz = p->sz;
 
   // Allocate two pages at the next page boundary.
-  // Use the second as the user stack.
+  // Use the second as the user stack.    // 原来用户的栈tmd是在这个鬼地方设置的，之前一直在allocproc procinit userinit找都没有找到......
   sz = PGROUNDUP(sz);
   uint64 sz1;
   if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE)) == 0)

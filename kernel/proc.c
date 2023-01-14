@@ -31,15 +31,17 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
 
-      // Allocate a page for the process's kernel stack.
-      // Map it high in memory, followed by an invalid
-      // guard page.
-      char *pa = kalloc();
-      if(pa == 0)
-        panic("kalloc");
-      uint64 va = KSTACK((int) (p - proc));
-      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-      p->kstack = va;
+      // // Allocate a page for the process's kernel stack.
+      // // Map it high in memory, followed by an invalid
+      // // guard page.
+      // char *pa = kalloc();
+      // if(pa == 0)
+      //   panic("kalloc");
+      // uint64 va = KSTACK((int) (p - proc));
+      // kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+      // p->kstack = va;
+      // above code set up kernel stack
+      // in the lab: page table per process, we move this part to allocproc()
   }
   kvminithart();
 }
@@ -105,29 +107,56 @@ allocproc(void)
   return 0;
 
 found:
-  p->pid = allocpid();
+  p->pid = allocpid();  // next pid not been used
 
   // Allocate a trapframe page.
-  if((p->trapframe = (struct trapframe *)kalloc()) == 0){
+  if((p->trapframe = (struct trapframe *)kalloc()) == 0){ // in kernel space, kalloc returns a physical address. so p->trapframe is a physical address
     release(&p->lock);
     return 0;
   }
 
   // An empty user page table.
-  p->pagetable = proc_pagetable(p);
+  p->pagetable = proc_pagetable(p); // this return a page table that has trampoline and trapframe pages mapped
   if(p->pagetable == 0){
     freeproc(p);
     release(&p->lock);
     return 0;
   }
 
+  p->kernel_pgtb = make_kernel_ptbl(); // a kernel page table per process
+
+  // set up kstack
+  char *pa = kalloc();
+  if(pa == 0)
+    panic("kalloc");
+  uint64 va = KSTACK((int) (p - proc));
+  map_helper(p->kernel_pgtb,va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  p->kstack = va;
+
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
-  p->context.sp = p->kstack + PGSIZE;
+  p->context.sp = p->kstack + PGSIZE;  // set process stack pointer
 
   return p;
+}
+
+void proc_freekernel_pgtb(pagetable_t pagetable,int level){
+  if(level > 2)
+    return;
+
+  // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if(pte & PTE_V){
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      proc_freekernel_pgtb((pagetable_t)child,level + 1);
+      pagetable[i] = 0;
+    }
+  }
+  kfree((void*)pagetable);
 }
 
 // free a proc structure and the data hanging from it,
@@ -141,6 +170,8 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  if(p->kernel_pgtb)
+    proc_freekernel_pgtb(p->kernel_pgtb,0);
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -157,10 +188,10 @@ freeproc(struct proc *p)
 pagetable_t
 proc_pagetable(struct proc *p)
 {
-  pagetable_t pagetable;
+  pagetable_t pagetable ;
 
   // An empty page table.
-  pagetable = uvmcreate();
+  pagetable = uvmcreate(); // just create a top level page table (with 512 empty entries)
   if(pagetable == 0)
     return 0;
 
@@ -213,12 +244,12 @@ userinit(void)
 {
   struct proc *p;
 
-  p = allocproc();
+  p = allocproc();  // set trampoline and trapframe
   initproc = p;
   
   // allocate one user page and copy init's instructions
   // and data into it.
-  uvminit(p->pagetable, initcode, sizeof(initcode));
+  uvminit(p->pagetable, initcode, sizeof(initcode));  // allocate one page and copy data in it
   p->sz = PGSIZE;
 
   // prepare for the very first "return" from kernel to user.
@@ -473,7 +504,14 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+        // load process's kernel page table
+        // so that when a process trap in the kernel, the loaded page table here
+        // will be used (I guess... I haven't read the code about how process trap in kernel and I don't know how to return to process from kernel)
+        w_satp(MAKE_SATP(p->kernel_pgtb));
+        sfence_vma();
         swtch(&c->context, &p->context);
+        // back to kernel, should use kernel_pagetable
+        kvminithart();
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
