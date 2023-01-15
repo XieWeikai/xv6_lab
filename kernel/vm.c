@@ -41,6 +41,46 @@ static void print_pte(pagetable_t pt,int level){
 }
 
 /*
+* compare if two given page table are identical
+* used to debug
+* level = 0,1,2
+* 2 is the top level
+*/
+static int pgtb_eq(pagetable_t a,pagetable_t b, int level,uint64 phy_addr){
+  pte_t pa,pb;
+  uint64 base;
+  for(uint64 i = 0;i < 512;i ++){
+    base = phy_addr | (i << (12 + level * 9));
+    // printf("level:%d i:%d base:%p\n",level,i,base);
+    pa = a[i];
+    pb = b[i];
+    if((pa&PTE_V) && (pb&PTE_V) ){
+      if(level == 0){ // leaf: compare pa directly
+        if(PTE2PA(pa) != PTE2PA(pb)){
+          printf("leaf not equal: base:%p pa1:%p pa2:%p\n",base,PTE2PA(pa),PTE2PA(pb));
+          return 0;
+        }
+      }else{
+        if(!pgtb_eq( (pagetable_t)PTE2PA(pa) , (pagetable_t)PTE2PA(pb) , level - 1 ,base) ){
+          return 0;
+        }
+      }
+    }else{
+      if((pa&PTE_V) || (pb&PTE_V)){ // one of the pte is valid and the other is not
+        printf("one of the pte is valid(%s) and the other is not. level:%d base:%p i:%d\n", (pa&PTE_V) ? "pa" : "pb" ,level,base,i);
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
+// if two pgtb is equal or not
+int pagetable_eq(pagetable_t a,pagetable_t b){
+  return pgtb_eq(a,b,2,0);
+}
+
+/*
 * print the content of a pagetable
 * this is a task for pagetable lab
 */
@@ -124,6 +164,13 @@ kvminit()
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel.
   kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+
+  // printf("free pages:%d\n",num_free_pages());
+  // pagetable_t tmp = make_kernel_ptbl();
+  // printf("number pages after make_kernel_ptbl:%d\n",num_free_pages());
+  // printf("eq: %d\n",pagetable_eq(kernel_pagetable,tmp));
+
+  // printf("kvminit finished eq:%d!\n",pagetable_eq(kernel_pagetable,kernel_pagetable));
 }
 
 // Switch h/w page table register to the kernel's page table,

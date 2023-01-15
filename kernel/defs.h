@@ -64,6 +64,8 @@ void            ramdiskintr(void);
 void            ramdiskrw(struct buf*);
 
 // kalloc.c
+int num_free_pages(); // return number of free pages. for debug use
+
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
@@ -158,6 +160,7 @@ void            uartputc_sync(int);
 int             uartgetc(void);
 
 // vm.c
+int pagetable_eq(pagetable_t a,pagetable_t b);  // check if two page table are equal
 void            vmprint(pagetable_t pt); // this function is a task of page table lab
 void            kvminit(void);
 void            kvminithart(void);
