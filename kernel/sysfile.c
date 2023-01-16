@@ -16,8 +16,6 @@
 #include "file.h"
 #include "fcntl.h"
 
-#include "debug.h"
-
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -448,7 +446,6 @@ sys_exec(void)
   for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
     kfree(argv[i]);
 
-  // debug_info("sys_exec",myproc());
   return ret;
 
  bad:

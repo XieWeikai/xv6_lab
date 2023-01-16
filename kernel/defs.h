@@ -64,8 +64,6 @@ void            ramdiskintr(void);
 void            ramdiskrw(struct buf*);
 
 // kalloc.c
-int num_free_pages(); // return number of free pages. for debug use
-
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);

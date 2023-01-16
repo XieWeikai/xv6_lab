@@ -214,7 +214,6 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
-  uvmunmap(p->kernel_pgtb,p->kstack,1,1);
   if(p->kernel_pgtb)
     proc_freekernel_pgtb(p->kernel_pgtb,0);
   p->pagetable = 0;
