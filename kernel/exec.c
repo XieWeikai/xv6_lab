@@ -52,6 +52,8 @@ exec(char *path, char **argv)
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz)) == 0)  // allocate the virtual address for the user from sz to ph.vaddr + ph.memsz
       goto bad;
     sz = sz1;
+    if(sz >= PLIC)
+      goto bad;
     if(ph.vaddr % PGSIZE != 0)  // should be page aligned
       goto bad;
     if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
@@ -114,6 +116,7 @@ exec(char *path, char **argv)
   p->sz = sz;
   p->trapframe->epc = elf.entry;  // initial program counter = main
   p->trapframe->sp = sp; // initial stack pointer
+  remove_pages_from_kernel(p,0,NUMPAGE(PGROUNDUP(oldsz)));
   proc_freepagetable(oldpagetable, oldsz);
 
   copy_pages_into_kernel_pgtb(p,0,NUMPAGE(PGROUNDUP(p->sz)),PTE_W | PTE_R); // copy user pgtb into kernel pgtb

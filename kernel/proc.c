@@ -21,28 +21,6 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
-// copy user page table into kernel page table
-// va is the start virtual address
-// npages is the number of pages to copy
-int copy_pages_into_kernel_pgtb(struct proc *pr,uint64 va,int npages,int perms){
-  uint64 va0 = PGROUNDDOWN(va);
-  uint64 start;
-  pte_t *pte1,*pte2;
-  uint64 pa;
-  for(int i = 0; i < npages;i ++){
-    start = va0 + i * PGSIZE;
-    pte2 = walk(pr->kernel_pgtb,start,1); // kernel page may not have this page
-    if(start == PLIC - PGSIZE)
-      break; // reach to the limit
-    pte1 = walk(pr->pagetable,start,0);
-    if(!pte1)
-      return 0;
-    pa = PTE2PA(*pte1);
-    *pte2 = PA2PTE(pa) | (perms | PTE_V);
-  }
-  return 1; // success
-}
-
 // remove npages start from va as virtual address from kernel page table
 // note that in this implementation, the unused pagetable will not be free
 // that is, if 512 pte is null in a page table ,that table will not be free
@@ -56,6 +34,35 @@ void remove_pages_from_kernel(struct proc *pr,uint64 va,int npages){
       *pte = 0;
     }
   }
+}
+
+// copy user page table into kernel page table
+// va is the start virtual address
+// npages is the number of pages to copy
+int copy_pages_into_kernel_pgtb(struct proc *pr,uint64 va,int npages,int perms){
+  uint64 va0 = PGROUNDDOWN(va);
+  uint64 start;
+  pte_t *pte1,*pte2;
+  uint64 pa;
+  int i;
+  for(i = 0; i < npages;i ++){
+    start = va0 + i * PGSIZE;
+    pte2 = walk(pr->kernel_pgtb,start,1); // kernel page may not have this page
+    if(!pte2)
+      goto err;
+    if(start == PLIC - PGSIZE)
+      break; // reach to the limit
+    pte1 = walk(pr->pagetable,start,0);
+    if(!pte1)
+      panic("copy_pages_into_kernel_pgtb: pagetable pte not present");
+    pa = PTE2PA(*pte1);
+    *pte2 = PA2PTE(pa) | (perms | PTE_V);
+  }
+  return 1; // success
+
+err:
+  remove_pages_from_kernel(pr,va,i);
+  return 0;
 }
 
 // initialize the proc table at boot time.
@@ -316,10 +323,9 @@ growproc(int n)
   start = PGROUNDUP(sz);
   end = PGROUNDUP(sz + n);
   if(n > 0){
-    if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+    if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0 || !copy_pages_into_kernel_pgtb(p,start,NUMPAGE(end - start),PTE_W | PTE_R)) {
       return -1;
     }
-    copy_pages_into_kernel_pgtb(p,start,NUMPAGE(end - start),PTE_W | PTE_R);
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
     remove_pages_from_kernel(p,end,NUMPAGE(end - start));
@@ -343,13 +349,13 @@ fork(void)
   }
 
   // Copy user memory from parent to child.
-  if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
+  if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0 || !copy_pages_into_kernel_pgtb(np,0,NUMPAGE(PGROUNDUP(p->sz)),PTE_W|PTE_R)){
     freeproc(np);
     release(&np->lock);
     return -1;
   }
   np->sz = p->sz;
-  copy_pages_into_kernel_pgtb(np,0,NUMPAGE(PGROUNDUP(np->sz)),PTE_W|PTE_R);
+  
 
   np->parent = p;
 
