@@ -94,6 +94,8 @@ int             fork(void);
 int             growproc(int);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t, uint64);
+int copy_pages_into_kernel_pgtb(struct proc *pr,uint64 va,int npages,int perms);
+void remove_pages_from_kernel(struct proc *pr,uint64 va,int npages);
 int             kill(int);
 struct cpu*     mycpu(void);
 struct cpu*     getmycpu(void);
@@ -161,6 +163,7 @@ int             uartgetc(void);
 
 // vm.c
 int pagetable_eq(pagetable_t a,pagetable_t b);  // check if two page table are equal
+pte_t * walk(pagetable_t pagetable, uint64 va, int alloc);
 void            vmprint(pagetable_t pt); // this function is a task of page table lab
 void            kvminit(void);
 void            kvminithart(void);

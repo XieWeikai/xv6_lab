@@ -21,6 +21,43 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
+// copy user page table into kernel page table
+// va is the start virtual address
+// npages is the number of pages to copy
+int copy_pages_into_kernel_pgtb(struct proc *pr,uint64 va,int npages,int perms){
+  uint64 va0 = PGROUNDDOWN(va);
+  uint64 start;
+  pte_t *pte1,*pte2;
+  uint64 pa;
+  for(int i = 0; i < npages;i ++){
+    start = va0 + i * PGSIZE;
+    pte2 = walk(pr->kernel_pgtb,start,1); // kernel page may not have this page
+    if(start == PLIC - PGSIZE)
+      break; // reach to the limit
+    pte1 = walk(pr->pagetable,start,0);
+    if(!pte1)
+      return 0;
+    pa = PTE2PA(*pte1);
+    *pte2 = PA2PTE(pa) | (perms | PTE_V);
+  }
+  return 1; // success
+}
+
+// remove npages start from va as virtual address from kernel page table
+// note that in this implementation, the unused pagetable will not be free
+// that is, if 512 pte is null in a page table ,that table will not be free
+// until the process was destroyed
+void remove_pages_from_kernel(struct proc *pr,uint64 va,int npages){
+  uint64 end = va + npages * PGSIZE;
+  pte_t *pte;
+  for(va = PGROUNDDOWN(va); va < end; va += PGSIZE){
+    pte = walk(pr->kernel_pgtb,va,0);
+    if(pte){
+      *pte = 0;
+    }
+  }
+}
+
 // initialize the proc table at boot time.
 void
 procinit(void)
@@ -251,6 +288,7 @@ userinit(void)
   // allocate one user page and copy init's instructions
   // and data into it.
   uvminit(p->pagetable, initcode, sizeof(initcode));  // allocate one page and copy data in it
+  copy_pages_into_kernel_pgtb(p,0,1,PTE_R | PTE_W);  
   p->sz = PGSIZE;
 
   // prepare for the very first "return" from kernel to user.
@@ -272,14 +310,19 @@ growproc(int n)
 {
   uint sz;
   struct proc *p = myproc();
+  uint64 start,end;
 
   sz = p->sz;
+  start = PGROUNDUP(sz);
+  end = PGROUNDUP(sz + n);
   if(n > 0){
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
+    copy_pages_into_kernel_pgtb(p,start,NUMPAGE(end - start),PTE_W | PTE_R);
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
+    remove_pages_from_kernel(p,end,NUMPAGE(end - start));
   }
   p->sz = sz;
   return 0;
@@ -306,6 +349,7 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
+  copy_pages_into_kernel_pgtb(np,0,NUMPAGE(PGROUNDUP(np->sz)),PTE_W|PTE_R);
 
   np->parent = p;
 

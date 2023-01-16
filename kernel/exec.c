@@ -39,20 +39,20 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
+  for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){  // read program header here (ph is short for program header)
     if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
-    if(ph.type != ELF_PROG_LOAD)
+    if(ph.type != ELF_PROG_LOAD)  // no need to load, continue
       continue;
     if(ph.memsz < ph.filesz)
       goto bad;
-    if(ph.vaddr + ph.memsz < ph.vaddr)
+    if(ph.vaddr + ph.memsz < ph.vaddr) // overflow, vaddr is uint64
       goto bad;
     uint64 sz1;
-    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz)) == 0)
+    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz)) == 0)  // allocate the virtual address for the user from sz to ph.vaddr + ph.memsz
       goto bad;
     sz = sz1;
-    if(ph.vaddr % PGSIZE != 0)
+    if(ph.vaddr % PGSIZE != 0)  // should be page aligned
       goto bad;
     if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
@@ -68,10 +68,10 @@ exec(char *path, char **argv)
   // Use the second as the user stack.    // 原来用户的栈tmd是在这个鬼地方设置的，之前一直在allocproc procinit userinit找都没有找到......
   sz = PGROUNDUP(sz);
   uint64 sz1;
-  if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE)) == 0)
+  if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE)) == 0) // allocate two more pages, one is guard page and the other is stack
     goto bad;
   sz = sz1;
-  uvmclear(pagetable, sz-2*PGSIZE);
+  uvmclear(pagetable, sz-2*PGSIZE);  // mark a PTE invalid for user access.  in this place, it make the guard page invalid for user
   sp = sz;
   stackbase = sp - PGSIZE;
 
@@ -116,6 +116,7 @@ exec(char *path, char **argv)
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
 
+  copy_pages_into_kernel_pgtb(p,0,NUMPAGE(PGROUNDUP(p->sz)),PTE_W | PTE_R); // copy user pgtb into kernel pgtb
   if(p->pid==1) vmprint(p->pagetable); // this line is for pagetable lab
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
