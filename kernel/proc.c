@@ -283,8 +283,8 @@ growproc(int n)
       return -1;
     }
   } else if(n < 0){
+    // 下面这俩写反了........
     uvmunmap(p->kernel_pgtb,PGROUNDUP(sz+n),(PGROUNDUP(sz) - PGROUNDUP(sz+n)) / PGSIZE,0);
-    // shrink_kpgtb(p->kernel_pgtb,sz,sz + n);
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;

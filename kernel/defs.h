@@ -89,7 +89,6 @@ void            printfinit(void);
 
 // proc.c
 int copy_pgtb(pagetable_t dst,pagetable_t src, uint64 oldsz, uint64 newsz);
-uint64 shrink_kpgtb(pagetable_t pagetable, uint64 oldsz, uint64 newsz);
 int             cpuid(void);
 void            exit(int);
 int             fork(void);
