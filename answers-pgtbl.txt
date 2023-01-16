@@ -1,0 +1,10 @@
+# 问题
+- kstack是干什么用的，在exec中给用户分配了栈，那kstack是用户陷入内核时内核用的栈？
+- kvmpa 为什么使用kernel_pagetable和myproc()->kernel_pgtb不一样？
+    在第二个任务里kernel_pgtb和kernel_pagetable不是一样的吗？
+- 在alloc里居然把p->context.sp设为了p->kstack + PGSIZE 
+    那切换到用户进程时sp岂不是p->kstack ?
+    也许在 forkret里干了啥我不知道的
+
+我感觉也许看过trap之后这些问题就清楚了？
+过段时间回来再看看

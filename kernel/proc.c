@@ -251,6 +251,7 @@ userinit(void)
   // allocate one user page and copy init's instructions
   // and data into it.
   uvminit(p->pagetable, initcode, sizeof(initcode));  // allocate one page and copy data in it
+  copy_pgtb(p->kernel_pgtb,p->pagetable,0,PGSIZE);
   p->sz = PGSIZE;
 
   // prepare for the very first "return" from kernel to user.
@@ -278,7 +279,12 @@ growproc(int n)
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
+    if(!copy_pgtb(p->kernel_pgtb,p->pagetable,p->sz,sz)){
+      return -1;
+    }
   } else if(n < 0){
+    uvmunmap(p->kernel_pgtb,PGROUNDUP(sz+n),(PGROUNDUP(sz) - PGROUNDUP(sz+n)) / PGSIZE,0);
+    // shrink_kpgtb(p->kernel_pgtb,sz,sz + n);
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;
@@ -300,7 +306,7 @@ fork(void)
   }
 
   // Copy user memory from parent to child.
-  if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
+  if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0 || !copy_pgtb(np->kernel_pgtb,np->pagetable,0,p->sz)){
     freeproc(np);
     release(&np->lock);
     return -1;

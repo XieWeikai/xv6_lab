@@ -88,6 +88,8 @@ void            panic(char*) __attribute__((noreturn));
 void            printfinit(void);
 
 // proc.c
+int copy_pgtb(pagetable_t dst,pagetable_t src, uint64 oldsz, uint64 newsz);
+uint64 shrink_kpgtb(pagetable_t pagetable, uint64 oldsz, uint64 newsz);
 int             cpuid(void);
 void            exit(int);
 int             fork(void);
@@ -160,6 +162,7 @@ void            uartputc_sync(int);
 int             uartgetc(void);
 
 // vm.c
+pte_t * walk(pagetable_t pagetable, uint64 va, int alloc);
 int pagetable_eq(pagetable_t a,pagetable_t b);  // check if two page table are equal
 void            vmprint(pagetable_t pt); // this function is a task of page table lab
 void            kvminit(void);

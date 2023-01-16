@@ -116,7 +116,7 @@ pagetable_t make_kernel_ptbl(){
   map_helper(pt,VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
 
   // CLINT
-  map_helper(pt,CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+  // map_helper(pt,CLINT, CLINT, 0x10000, PTE_R | PTE_W);
 
   // PLIC
   map_helper(pt,PLIC, PLIC, 0x400000, PTE_R | PTE_W);
@@ -130,7 +130,6 @@ pagetable_t make_kernel_ptbl(){
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel.
   map_helper(pt,TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
-
   return pt;
 }
 
@@ -379,6 +378,28 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
   return newsz;
 }
 
+// copy page table from src to dst
+// virtual address from oldsz to newsz
+int copy_pgtb(pagetable_t dst,pagetable_t src, uint64 oldsz, uint64 newsz){
+  uint64 a = PGROUNDUP(oldsz);
+  uint64 addr;
+  pte_t *pte;
+  for(; a < newsz; a += PGSIZE){
+    if(a >= PLIC)
+      goto err;
+    pte = walk(src,a,0); 
+    if(!pte)
+      goto err;
+    addr = PTE2PA(*pte);
+    if(mappages(dst,a,PGSIZE,addr,PTE_W | PTE_R) != 0)
+      goto err;
+  }
+  return 1;
+err:
+  uvmunmap(dst,PGROUNDUP(oldsz),(a - PGROUNDUP(oldsz)) / PGSIZE,0);
+  return 0;
+}
+
 // Deallocate user pages to bring the process size from oldsz to
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
 // need to be less than oldsz.  oldsz can be larger than the actual
@@ -507,23 +528,25 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 int
 copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
-  uint64 n, va0, pa0;
+  int copyin_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len);
+  return copyin_new(pagetable, dst, srcva, len);
+  // uint64 n, va0, pa0;
 
-  while(len > 0){
-    va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
-    n = PGSIZE - (srcva - va0);
-    if(n > len)
-      n = len;
-    memmove(dst, (void *)(pa0 + (srcva - va0)), n);
+  // while(len > 0){
+  //   va0 = PGROUNDDOWN(srcva);
+  //   pa0 = walkaddr(pagetable, va0);
+  //   if(pa0 == 0)
+  //     return -1;
+  //   n = PGSIZE - (srcva - va0);
+  //   if(n > len)
+  //     n = len;
+  //   memmove(dst, (void *)(pa0 + (srcva - va0)), n);
 
-    len -= n;
-    dst += n;
-    srcva = va0 + PGSIZE;
-  }
-  return 0;
+  //   len -= n;
+  //   dst += n;
+  //   srcva = va0 + PGSIZE;
+  // }
+  // return 0;
 }
 
 // Copy a null-terminated string from user to kernel.
@@ -533,38 +556,40 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 int
 copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 {
-  uint64 n, va0, pa0;
-  int got_null = 0;
+  int copyinstr_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max);
+  return copyinstr_new(pagetable,dst,srcva,max);
+  // uint64 n, va0, pa0;
+  // int got_null = 0;
 
-  while(got_null == 0 && max > 0){
-    va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
-    n = PGSIZE - (srcva - va0);
-    if(n > max)
-      n = max;
+  // while(got_null == 0 && max > 0){
+  //   va0 = PGROUNDDOWN(srcva);
+  //   pa0 = walkaddr(pagetable, va0);
+  //   if(pa0 == 0)
+  //     return -1;
+  //   n = PGSIZE - (srcva - va0);
+  //   if(n > max)
+  //     n = max;
 
-    char *p = (char *) (pa0 + (srcva - va0));
-    while(n > 0){
-      if(*p == '\0'){
-        *dst = '\0';
-        got_null = 1;
-        break;
-      } else {
-        *dst = *p;
-      }
-      --n;
-      --max;
-      p++;
-      dst++;
-    }
+  //   char *p = (char *) (pa0 + (srcva - va0));
+  //   while(n > 0){
+  //     if(*p == '\0'){
+  //       *dst = '\0';
+  //       got_null = 1;
+  //       break;
+  //     } else {
+  //       *dst = *p;
+  //     }
+  //     --n;
+  //     --max;
+  //     p++;
+  //     dst++;
+  //   }
 
-    srcva = va0 + PGSIZE;
-  }
-  if(got_null){
-    return 0;
-  } else {
-    return -1;
-  }
+  //   srcva = va0 + PGSIZE;
+  // }
+  // if(got_null){
+  //   return 0;
+  // } else {
+  //   return -1;
+  // }
 }
