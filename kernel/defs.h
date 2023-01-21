@@ -161,6 +161,7 @@ void            uartputc_sync(int);
 int             uartgetc(void);
 
 // vm.c
+int num_user_pages(pagetable_t pt);
 pte_t * walk(pagetable_t pagetable, uint64 va, int alloc);
 int pagetable_eq(pagetable_t a,pagetable_t b);  // check if two page table are equal
 void            vmprint(pagetable_t pt); // this function is a task of page table lab

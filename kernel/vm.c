@@ -18,6 +18,23 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 extern char trampoline[]; // trampoline.S
 
 /*
+* return the number of user pagetable's pages
+*/
+int num_user_pages(pagetable_t pt){
+  int num = 0;
+  uint64 a = 0;
+  pte_t *pte;
+  while(a < PLIC){
+    pte = walk(pt,a,0);
+    if(!pte || !(*pte & PTE_V))
+      break;
+    num ++;
+    a += PGSIZE;
+  }
+  return num;
+}
+
+/*
 * a helper function to print page table recursively
 * level is the level of pagetable
 * 0 is the highest level
@@ -101,8 +118,8 @@ map_helper(pagetable_t pt, uint64 va, uint64 pa, uint64 sz, int perm)
 }
 
 /* 
-* make a page table that is identical to kernel_pagetable
-* this function is used for make a copy of kernel page table
+* make a page table that is identical to kernel_pagetable.
+* this function is used for making a copy of kernel page table
 * for each process.
 */
 pagetable_t make_kernel_ptbl(){

@@ -263,6 +263,9 @@ userinit(void)
 
   p->state = RUNNABLE;
 
+  printf(">>>>userinit done. pid = %d\n",p->pid);
+  printf("--- user pgtbl:%d\n--- kernel pgtbl:%d\n\n",num_user_pages(p->pagetable),num_user_pages(p->kernel_pgtb));
+
   release(&p->lock);
 }
 
@@ -284,9 +287,15 @@ growproc(int n)
     }
   } else if(n < 0){
     // 下面这俩写反了........
-    uvmunmap(p->kernel_pgtb,PGROUNDUP(sz+n),(PGROUNDUP(sz) - PGROUNDUP(sz+n)) / PGSIZE,0);
     sz = uvmdealloc(p->pagetable, sz, sz + n);
+    printf("right before uvmunmap in growproc\n");
+    uvmunmap(p->kernel_pgtb,PGROUNDUP(sz+n),(PGROUNDUP(sz) - PGROUNDUP(sz+n)) / PGSIZE,0);
+    printf("right after uvmunmap in growproc\n\n");
   }
+
+  printf(">>>>growproc done. pid = %d\n",p->pid);
+  printf("--- user pgtbl:%d\n--- kernel pgtbl:%d\n\n",num_user_pages(p->pagetable),num_user_pages(p->kernel_pgtb));
+
   p->sz = sz;
   return 0;
 }
@@ -332,6 +341,9 @@ fork(void)
   pid = np->pid;
 
   np->state = RUNNABLE;
+
+  printf(">>>>fork done. pid = %d\n",np->pid);
+  printf("--- user pgtbl:%d\n--- kernel pgtbl:%d\n\n",num_user_pages(np->pagetable),num_user_pages(np->kernel_pgtb));
 
   release(&np->lock);
 
