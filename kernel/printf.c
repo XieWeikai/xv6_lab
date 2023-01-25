@@ -25,6 +25,24 @@ static struct {
 
 static char digits[] = "0123456789abcdef";
 
+struct frame{
+  uint64 fp;
+  uint64 ra;
+};
+
+// this function is for the "Backtrace task" in the trap lab
+// print out the function call chain address
+void backtrace(){
+  uint64 fp = r_fp();
+  void *top = (void *) PGROUNDUP(fp);
+  struct frame *fr;
+  while((void *)fp < top){
+    fr = (void *)(fp - 16);
+    printf("%p\n",fr->ra);
+    fp = fr->fp;
+  }
+}
+
 static void
 printint(int xx, int base, int sign)
 {
@@ -119,6 +137,8 @@ panic(char *s)
 {
   pr.locking = 0;
   printf("panic: ");
+  printf("backtrace:\n");
+  backtrace();
   printf(s);
   printf("\n");
   panicked = 1; // freeze uart output from other CPUs
