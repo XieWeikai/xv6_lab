@@ -21,6 +21,26 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
+// when we are going to execute the alarm handler, the current
+// trapframe should be saved to someplace, so that when we call
+// sigreturn, we can restore the register and go back to where
+// user code was interrupt.
+// considering that a frame has 4096 bytes, and current struct trapframe
+// only used less than 300 bytes, we can save the trapframe right after
+// the struct trapframe
+void save_curr_trapframe(struct proc *p){
+  struct trapframe *tf;
+  tf = p->trapframe + 1; // the memory right after trapframe
+  *tf = *(p->trapframe); // save current trapframe
+}
+
+// restore the trapframe saved by function save_cur_trapframe
+void restore_trapframe(struct proc *p){
+  struct trapframe *tf;
+  tf = p->trapframe + 1; // the memory right after trapframe
+  *(p->trapframe) = *tf; // copy back the saved trapframe
+}
+
 // initialize the proc table at boot time.
 void
 procinit(void)
@@ -126,6 +146,11 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+
+  p->ticks = 0; // no alarm used
+  p->tick_cnt = 0;
+  p->handler = (void (*)())0; // no handler now
+  p->handler_done = 1;
 
   return p;
 }
