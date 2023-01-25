@@ -109,4 +109,6 @@ struct proc {
   void (*handler)();
   int tick_cnt;  // ticks passed for the process since last alarm
   int handler_done; // if the handler is done
+  // per-process page table
+  pagetable_t kernel_pgtb;
 };
