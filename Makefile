@@ -35,7 +35,52 @@ OBJS = \
   $K/sysfile.o \
   $K/kernelvec.o \
   $K/plic.o \
-  $K/virtio_disk.o
+  $K/virtio_disk.o\
+  $K/debug.o\
+  $K/vmcopyin.o\
+  $K/sprintf.o
+
+ifeq ($(LAB),pgtbl)
+OBJS += \
+	$K/vmcopyin.o
+endif
+
+ifeq ($(LAB),$(filter $(LAB), pgtbl lock))
+OBJS += \
+	$K/stats.o\
+	$K/sprintf.o
+endif
+
+
+ifeq ($(LAB),net)
+OBJS += \
+	$K/e1000.o \
+	$K/net.o \
+	$K/sysnet.o \
+	$K/pci.o
+endif
+
+
+ifeq ($(LAB),pgtbl)
+OBJS += \
+	$K/vmcopyin.o
+endif
+
+ifeq ($(LAB),$(filter $(LAB), pgtbl lock))
+OBJS += \
+	$K/stats.o\
+	$K/sprintf.o
+endif
+
+
+ifeq ($(LAB),net)
+OBJS += \
+	$K/e1000.o \
+	$K/net.o \
+	$K/sysnet.o \
+	$K/pci.o
+endif
+
 
 ifeq ($(LAB),pgtbl)
 OBJS += \

@@ -23,6 +23,16 @@ struct {
   struct run *freelist;
 } kmem;
 
+int num_free_pages(){
+  int sum = 0;
+  struct run *p = kmem.freelist;
+  while(p){
+    sum ++;
+    p = p->next;
+  }
+  return sum;
+}
+
 void
 kinit()
 {

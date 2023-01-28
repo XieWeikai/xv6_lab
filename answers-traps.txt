@@ -1,0 +1,3 @@
+I don't think assembly code is a dificulty to me.
+I've learn x86 assembly (csapp), I don't think this will be more difficult than that.
+So, I didn't do the RISC-V assembly task.

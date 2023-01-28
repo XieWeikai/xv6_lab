@@ -8,6 +8,54 @@
 #include "proc.h"
 
 uint64
+sys_sigalarm(void){
+  uint64 fn;
+  int ticks;
+  struct proc *p = myproc();
+
+  argint(0,&ticks);
+  argaddr(1,&fn);
+  
+
+  printf("alarm start: fn:%p ticks:%d\n",fn,ticks);
+
+  // stop generating periodic alarm calls
+  if(ticks == 0){
+    if(fn != 0)
+      return -1;
+    p->handler = (void (*)()) 0;
+    p->tick_cnt = 0;
+    p->ticks = 0;
+    p->handler_done = 1;
+    return 0; // ok
+  }
+
+  // ticks != 0, set an alarm handler
+  p->ticks = ticks;
+  p->tick_cnt = 0;
+  p->handler = (void (*)()) fn;
+  p->handler_done = 1;
+
+#ifdef DEBUG_TRAP
+  printf("alarm done: fn:%p ticks:%d\n",fn,ticks);
+#endif
+
+  return 0;
+}
+
+uint64
+sys_sigreturn(void){
+  struct proc *p = myproc();
+
+  p->handler_done = 1;
+  p->tick_cnt = 0;
+
+  restore_trapframe(p);
+
+  return 0;
+}
+
+uint64
 sys_exit(void)
 {
   int n;
@@ -70,6 +118,9 @@ sys_sleep(void)
     sleep(&ticks, &tickslock);
   }
   release(&tickslock);
+
+  backtrace(); // for backtrace task
+
   return 0;
 }
 

@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "syscall.h"
 #include "defs.h"
+#include "debug.h"
 
 // Fetch the uint64 at addr from the current process.
 int
@@ -105,6 +106,9 @@ extern uint64 sys_wait(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
 
+extern uint64 sys_sigalarm(void);
+extern uint64 sys_sigreturn(void);
+
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -127,6 +131,10 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+
+// following is for trap lab
+[SYS_sigalarm] sys_sigalarm, 
+[SYS_sigreturn] sys_sigreturn,
 };
 
 void
