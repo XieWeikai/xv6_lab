@@ -36,7 +36,9 @@ OBJS = \
   $K/kernelvec.o \
   $K/plic.o \
   $K/virtio_disk.o\
-  $K/debug.o
+  $K/debug.o\
+  $K/vmcopyin.o\
+  $K/sprintf.o
 
 ifeq ($(LAB),pgtbl)
 OBJS += \
