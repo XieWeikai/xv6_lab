@@ -102,13 +102,18 @@ walkaddr(pagetable_t pagetable, uint64 va)
 
   pte = walk(pagetable, va, 0);
   if(pte == 0)
-    return 0;
+    goto lazy;
   if((*pte & PTE_V) == 0)
-    return 0;
+    goto lazy;
   if((*pte & PTE_U) == 0)
     return 0;
   pa = PTE2PA(*pte);
   return pa;
+
+lazy:
+  if(user_pointer_ok(va) != 1)
+    return 0;
+  return walkaddr(pagetable,va);
 }
 
 // add a mapping to the kernel page table.
