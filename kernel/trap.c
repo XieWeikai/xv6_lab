@@ -16,6 +16,58 @@ void kernelvec();
 
 extern int devintr();
 
+typedef void (*handler)(struct proc *) ;
+
+static handler trap_handlers[64] = {0}; // trap handler
+
+void syscall_handler(struct proc *p){
+  // system call
+
+  if(p->killed)
+    exit(-1);
+
+  // sepc points to the ecall instruction,
+  // but we want to return to the next instruction.
+  p->trapframe->epc += 4;
+
+  // an interrupt will change sstatus &c registers,
+  // so don't enable until done with those registers.
+  intr_on();
+
+  syscall();
+}
+
+void lazy_allocation(struct proc *p){
+  uint64 va = r_stval();
+  if(!user_pointer_ok(va))
+    p->killed = 1;
+//   void *pa;
+//   printf("page fault: va:%p sepc:%p scause:%d\n",va,r_sepc(),r_scause());
+//   if(va >= p->sz || (pa = kalloc()) == 0) // illegal va or failed to allocate free page, kill the process
+//     goto kill;
+  
+//   va = PGROUNDDOWN(va);
+//   if(mappages(p->pagetable,va,PGSIZE,(uint64)pa,PTE_R|PTE_W|PTE_U) != 0){
+//     kfree(pa);
+//     goto kill;
+//   }
+
+//   if(mappages(p->kernel_pgtb,va,PGSIZE,(uint64)pa,PTE_R|PTE_W) != 0){
+//     uvmunmap(p->pagetable,va,1,1);
+//     goto kill;
+//   }
+
+//   return;
+
+// kill:
+//   p->killed = 1;
+}
+
+void trap_handlers_init(){
+  trap_handlers[8] = syscall_handler;
+  trap_handlers[13] = trap_handlers[15] = lazy_allocation;
+}
+
 void
 trapinit(void)
 {
@@ -37,6 +89,7 @@ void
 usertrap(void)
 {
   int which_dev = 0;
+  int scause = 0;
 
   if((r_sstatus() & SSTATUS_SPP) != 0)
     panic("usertrap: not from user mode");
@@ -50,21 +103,10 @@ usertrap(void)
   // save user program counter.
   p->trapframe->epc = r_sepc();
   
-  if(r_scause() == 8){
-    // system call
+  scause = r_scause();
 
-    if(p->killed)
-      exit(-1);
-
-    // sepc points to the ecall instruction,
-    // but we want to return to the next instruction.
-    p->trapframe->epc += 4;
-
-    // an interrupt will change sstatus &c registers,
-    // so don't enable until done with those registers.
-    intr_on();
-
-    syscall();
+  if(trap_handlers[scause] != 0){
+    trap_handlers[scause](p);
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {

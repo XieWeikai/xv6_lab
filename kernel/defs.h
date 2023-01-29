@@ -13,7 +13,10 @@ struct mbuf;
 struct sock;
 #endif
 
-#define DEBUG_TRAP
+// #define DEBUG_TRAP
+
+// sysproc.c
+int user_pointer_ok(uint64 p);
 
 // bio.c
 void            binit(void);
@@ -153,6 +156,7 @@ int             fetchaddr(uint64, uint64*);
 void            syscall();
 
 // trap.c
+void trap_handlers_init() ; // for lazy allocation lab
 extern uint     ticks;
 void            trapinit(void);
 void            trapinithart(void);

@@ -7,6 +7,32 @@
 #include "spinlock.h"
 #include "proc.h"
 
+int user_pointer_ok(uint64 va){
+  struct proc *pr = myproc();
+  void *pa;
+  pte_t *pte;
+  if(va >= pr->sz || va >= PLIC)
+    return 0;
+  pte = walk(pr->pagetable,va,1);
+  if(pte == 0)
+    return 0;  // walk failed
+  if((*pte & PTE_V) != 0 && (*pte & PTE_U) == 0) // guard page, user should not use
+    return 0;
+
+  if((*pte & PTE_V) == 0){ // memory not allocated yet
+    va = PGROUNDDOWN(va);
+    pa = kalloc();
+    if(pa == 0)
+      return 0; // can not allocate memory
+    *pte = PA2PTE(pa) | PTE_U | PTE_R | PTE_W | PTE_V;
+    if(mappages(pr->kernel_pgtb,va,PGSIZE,(uint64)pa,PTE_R | PTE_W)){
+      uvmunmap(pr->pagetable,va,1,1);
+      return 0;
+    }
+  }
+  return 1;
+}
+
 uint64
 sys_sigalarm(void){
   uint64 fn;
@@ -83,21 +109,35 @@ sys_wait(void)
   uint64 p;
   if(argaddr(0, &p) < 0)
     return -1;
+  if(!user_pointer_ok(p))
+    return -1;
   return wait(p);
 }
 
 uint64
 sys_sbrk(void)
 {
-  int addr;
+  int sz;
   int n;
+  struct proc *p = myproc();
 
   if(argint(0, &n) < 0)
     return -1;
-  addr = myproc()->sz;
-  if(growproc(n) < 0)
+  sz = p->sz;
+  if(sz + n >= PLIC)  // user space can not go beyond PLIC
     return -1;
-  return addr;
+  p->sz += n;
+
+  if(n < 0){
+    uvmunmap(p->kernel_pgtb,PGROUNDUP(sz+n),(PGROUNDUP(sz) - PGROUNDUP(sz+n)) / PGSIZE,0);
+    uvmdealloc(p->pagetable, sz, sz + n);
+  }
+
+  // do not allocate memory eagerly, use lazy allocation strategy
+  // if(growproc(n) < 0)
+  //   return -1;
+  // printf("return sz:%p\n",sz);
+  return sz;
 }
 
 uint64
