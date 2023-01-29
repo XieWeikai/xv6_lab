@@ -16,6 +16,40 @@ void kernelvec();
 
 extern int devintr();
 
+typedef void (*handler)(struct proc *) ;
+
+void syscall_handler(struct proc *p){
+  // system call
+
+  if(p->killed)
+    exit(-1);
+
+  // sepc points to the ecall instruction,
+  // but we want to return to the next instruction.
+  p->trapframe->epc += 4;
+
+  // an interrupt will change sstatus &c registers,
+  // so don't enable until done with those registers.
+  intr_on();
+
+  syscall();
+}
+
+void lazy_alloc(struct proc *p){
+  uint64 va = r_stval();
+  int s;
+  if((s = user_pointer_ok(va)) != 1){
+    p->killed = 1;
+    // printf("%d\n",s);
+  }
+}
+
+handler trap_handlers[64] = {
+  [8] syscall_handler,
+  [13] lazy_alloc,
+  [15] lazy_alloc,
+};
+
 void
 trapinit(void)
 {
@@ -37,6 +71,7 @@ void
 usertrap(void)
 {
   int which_dev = 0;
+  int scause;
 
   if((r_sstatus() & SSTATUS_SPP) != 0)
     panic("usertrap: not from user mode");
@@ -50,21 +85,9 @@ usertrap(void)
   // save user program counter.
   p->trapframe->epc = r_sepc();
   
-  if(r_scause() == 8){
-    // system call
-
-    if(p->killed)
-      exit(-1);
-
-    // sepc points to the ecall instruction,
-    // but we want to return to the next instruction.
-    p->trapframe->epc += 4;
-
-    // an interrupt will change sstatus &c registers,
-    // so don't enable until done with those registers.
-    intr_on();
-
-    syscall();
+  scause = r_scause();
+  if(trap_handlers[scause] != 0){
+    trap_handlers[scause](p);
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {

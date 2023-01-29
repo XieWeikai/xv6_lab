@@ -41,15 +41,44 @@ sys_wait(void)
 uint64
 sys_sbrk(void)
 {
-  int addr;
+  int sz;
   int n;
+  struct proc *p = myproc();
 
   if(argint(0, &n) < 0)
     return -1;
-  addr = myproc()->sz;
-  if(growproc(n) < 0)
+  sz = p->sz;
+  p->sz += n;
+  
+  if(n < 0)
+    uvmdealloc(p->pagetable, sz, sz + n);
+
+  // do not allocate memory eagerly
+  // if(growproc(n) < 0)
+  //   return -1;
+  return sz;
+}
+
+int user_pointer_ok(uint64 va){
+  struct proc *pr = myproc();
+  void *pa;
+  pte_t *pte;
+  if(va >= pr->sz)
     return -1;
-  return addr;
+  pte = walk(pr->pagetable,va,1);
+  if(pte == 0)
+    return -2;  // walk failed
+  if((*pte & PTE_V) != 0 && (*pte & PTE_U) == 0) // guard page, user should not use
+    return -3;
+
+  if((*pte & PTE_V) == 0){ // memory not allocated yet
+    va = PGROUNDDOWN(va);
+    pa = kalloc();
+    if(pa == 0)
+      return 0; // can not allocate memory
+    *pte = PA2PTE(pa) | PTE_U | PTE_R | PTE_W | PTE_V;
+  }
+  return 1;
 }
 
 uint64
